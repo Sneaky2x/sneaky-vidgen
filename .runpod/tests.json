@@ -5,7 +5,7 @@
       "input": {
         "action": "health"
       },
-      "timeout": 30000
+      "timeout": 60000
     },
     {
       "name": "list_loras",
@@ -16,12 +16,12 @@
     }
   ],
   "config": {
-    "gpuTypeId": "NVIDIA A100 80GB PCIe",
+    "gpuTypeId": "NVIDIA L4",
     "gpuCount": 1,
     "env": [
       {
         "key": "QUANT_METHOD",
-        "value": "bnb4"
+        "value": "gguf"
       },
       {
         "key": "CACHE_THRESHOLD",
