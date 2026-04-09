@@ -1,0 +1,79 @@
+{
+  "title": "Sneaky Vidgen",
+  "description": "Wan2.2 Image-to-Video serverless worker with quantization, LoRA, TeaCache-style caching, and SageAttention acceleration.",
+  "type": "serverless",
+  "category": "video",
+  "config": {
+    "runsOn": "GPU",
+    "containerDiskInGb": 200,
+    "gpuCount": 1,
+    "gpuIds": "NVIDIA GeForce RTX 4090,NVIDIA A100-PCIE-40GB,NVIDIA A100 80GB PCIe,NVIDIA L40,NVIDIA L40S,NVIDIA RTX A5000,NVIDIA RTX A6000,NVIDIA H100 PCIe,NVIDIA H100 80GB HBM3",
+    "env": [
+      {
+        "key": "QUANT_METHOD",
+        "input": {
+          "name": "Quantization Method",
+          "type": "string",
+          "description": "Model quantization: bnb4 (4-bit NF4, ~20GB VRAM), bnb8 (8-bit, ~40GB VRAM), none (BF16, ~66GB VRAM)",
+          "options": [
+            {"label": "BitsAndBytes NF4 (24GB+ GPU)", "value": "bnb4"},
+            {"label": "BitsAndBytes 8-bit (48GB+ GPU)", "value": "bnb8"},
+            {"label": "No quantization / BF16 (80GB+ GPU)", "value": "none"}
+          ],
+          "default": "bnb4"
+        }
+      },
+      {
+        "key": "ENABLE_SAGE_ATTENTION",
+        "input": {
+          "name": "SageAttention",
+          "type": "string",
+          "description": "Enable SageAttention for ~2x attention speedup",
+          "options": [
+            {"label": "Enabled", "value": "true"},
+            {"label": "Disabled", "value": "false"}
+          ],
+          "default": "true"
+        }
+      },
+      {
+        "key": "CACHE_THRESHOLD",
+        "input": {
+          "name": "Cache Threshold",
+          "type": "string",
+          "description": "FirstBlockCache threshold (TeaCache-style). Higher = faster but lower quality. 0 = disabled. Try 0.05 for speed.",
+          "default": "0"
+        }
+      },
+      {
+        "key": "DEFAULT_FLOW_SHIFT",
+        "input": {
+          "name": "Default Flow Shift",
+          "type": "string",
+          "description": "Flow shift for scheduler. 3.0 for 480P, 5.0 for 720P.",
+          "default": "5.0"
+        }
+      },
+      {
+        "key": "HF_TOKEN",
+        "input": {
+          "name": "HuggingFace Token",
+          "type": "string",
+          "description": "HuggingFace access token for gated models (optional)",
+          "default": "",
+          "advanced": true
+        }
+      },
+      {
+        "key": "CIVITAI_TOKEN",
+        "input": {
+          "name": "CivitAI Token",
+          "type": "string",
+          "description": "CivitAI API token for restricted LoRA downloads (optional)",
+          "default": "",
+          "advanced": true
+        }
+      }
+    ]
+  }
+}

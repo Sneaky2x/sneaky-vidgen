@@ -1,0 +1,14 @@
+{
+  "input": {
+    "image": "<BASE64_ENCODED_IMAGE>",
+    "prompt": "A cat sitting calmly, gentle breeze",
+    "width": 832,
+    "height": 480,
+    "steps": 4,
+    "cfg_scale": 3.5,
+    "num_frames": 17,
+    "fps": 16,
+    "seed": 42,
+    "output_format": "mp4"
+  }
+}

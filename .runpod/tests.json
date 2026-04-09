@@ -1,0 +1,36 @@
+{
+  "tests": [
+    {
+      "name": "health_check",
+      "input": {
+        "action": "health"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "list_loras",
+      "input": {
+        "action": "list_loras"
+      },
+      "timeout": 10000
+    }
+  ],
+  "config": {
+    "gpuTypeId": "NVIDIA A100 80GB PCIe",
+    "gpuCount": 1,
+    "env": [
+      {
+        "key": "QUANT_METHOD",
+        "value": "bnb4"
+      },
+      {
+        "key": "CACHE_THRESHOLD",
+        "value": "0.1"
+      },
+      {
+        "key": "ENABLE_CPU_OFFLOAD",
+        "value": "true"
+      }
+    ]
+  }
+}
