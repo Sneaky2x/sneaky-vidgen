@@ -20,8 +20,9 @@ from diffusers.utils import export_to_video
 # Configuration
 # ---------------------------------------------------------------------------
 MODEL_PATH = os.environ.get("MODEL_PATH", "/models/wan2.2")
+GGUF_DIR = os.environ.get("GGUF_DIR", "/models/gguf")
 LORA_DIR = os.environ.get("LORA_DIR", "/models/loras")
-QUANT_METHOD = os.environ.get("QUANT_METHOD", "bnb4")  # none, bnb4, bnb8
+QUANT_METHOD = os.environ.get("QUANT_METHOD", "gguf")  # gguf, bnb4, bnb8, none
 ENABLE_SAGE_ATTENTION = os.environ.get("ENABLE_SAGE_ATTENTION", "true").lower() == "true"
 CACHE_THRESHOLD = float(os.environ.get("CACHE_THRESHOLD", "0"))
 ENABLE_CPU_OFFLOAD = os.environ.get("ENABLE_CPU_OFFLOAD", "true").lower() == "true"
@@ -64,39 +65,71 @@ def load_pipeline():
         print(f"Model not found at {MODEL_PATH}, downloading …")
         from huggingface_hub import snapshot_download
 
+        skip = (
+            ["transformer/diffusion_pytorch_model*", "transformer_2/diffusion_pytorch_model*"]
+            if QUANT_METHOD == "gguf"
+            else None
+        )
         snapshot_download(
             "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
             local_dir=MODEL_PATH,
+            ignore_patterns=skip,
             token=os.environ.get("HF_TOKEN") or None,
-        )
-
-    # -- Quantization ---------------------------------------------------------
-    load_kwargs: dict = {"torch_dtype": torch.bfloat16}
-
-    if QUANT_METHOD == "bnb4":
-        from diffusers.quantizers import PipelineQuantizationConfig
-
-        load_kwargs["quantization_config"] = PipelineQuantizationConfig(
-            quant_backend="bitsandbytes_4bit",
-            quant_kwargs={
-                "load_in_4bit": True,
-                "bnb_4bit_quant_type": "nf4",
-                "bnb_4bit_compute_dtype": torch.bfloat16,
-            },
-            components_to_quantize=["transformer", "transformer_2"],
-        )
-    elif QUANT_METHOD == "bnb8":
-        from diffusers.quantizers import PipelineQuantizationConfig
-
-        load_kwargs["quantization_config"] = PipelineQuantizationConfig(
-            quant_backend="bitsandbytes_8bit",
-            quant_kwargs={"load_in_8bit": True},
-            components_to_quantize=["transformer", "transformer_2"],
         )
 
     # -- Load pipeline --------------------------------------------------------
     print(f"Loading pipeline ({QUANT_METHOD}) …")
-    pipe = WanImageToVideoPipeline.from_pretrained(MODEL_PATH, **load_kwargs)
+
+    if QUANT_METHOD == "gguf":
+        import glob
+        from diffusers import WanTransformer3DModel, GGUFQuantizationConfig
+
+        gguf_cfg = GGUFQuantizationConfig(compute_dtype=torch.bfloat16)
+
+        hn_files = glob.glob(os.path.join(GGUF_DIR, "HighNoise", "*.gguf"))
+        ln_files = glob.glob(os.path.join(GGUF_DIR, "LowNoise", "*.gguf"))
+        if not hn_files or not ln_files:
+            raise FileNotFoundError(
+                f"GGUF files not found in {GGUF_DIR}/HighNoise/ and {GGUF_DIR}/LowNoise/. "
+                "Run builder.py or set GGUF_DIR correctly."
+            )
+
+        print(f"  HighNoise: {os.path.basename(hn_files[0])}")
+        transformer = WanTransformer3DModel.from_single_file(
+            hn_files[0], quantization_config=gguf_cfg, torch_dtype=torch.bfloat16,
+        )
+        print(f"  LowNoise:  {os.path.basename(ln_files[0])}")
+        transformer_2 = WanTransformer3DModel.from_single_file(
+            ln_files[0], quantization_config=gguf_cfg, torch_dtype=torch.bfloat16,
+        )
+
+        pipe = WanImageToVideoPipeline.from_pretrained(
+            MODEL_PATH,
+            transformer=transformer,
+            transformer_2=transformer_2,
+            torch_dtype=torch.bfloat16,
+        )
+
+    elif QUANT_METHOD in ("bnb4", "bnb8"):
+        from diffusers.quantizers import PipelineQuantizationConfig
+
+        backend = "bitsandbytes_4bit" if QUANT_METHOD == "bnb4" else "bitsandbytes_8bit"
+        qkw = (
+            {"load_in_4bit": True, "bnb_4bit_quant_type": "nf4", "bnb_4bit_compute_dtype": torch.bfloat16}
+            if QUANT_METHOD == "bnb4"
+            else {"load_in_8bit": True}
+        )
+        pipe = WanImageToVideoPipeline.from_pretrained(
+            MODEL_PATH,
+            quantization_config=PipelineQuantizationConfig(
+                quant_backend=backend, quant_kwargs=qkw,
+                components_to_quantize=["transformer", "transformer_2"],
+            ),
+            torch_dtype=torch.bfloat16,
+        )
+
+    else:
+        pipe = WanImageToVideoPipeline.from_pretrained(MODEL_PATH, torch_dtype=torch.bfloat16)
 
     # -- Device / offload strategy --------------------------------------------
     if ENABLE_CPU_OFFLOAD:
@@ -148,19 +181,22 @@ def load_pipeline():
         except Exception as exc:
             print(f"FirstBlockCache unavailable: {exc}")
 
-    # -- torch.compile (opt-in, large speedup after warmup) -------------------
+    # -- torch.compile (opt-in, NOT compatible with GGUF) ----------------------
     if TORCH_COMPILE:
-        try:
-            pipe.transformer = torch.compile(
-                pipe.transformer, mode="max-autotune-no-cudagraphs"
-            )
-            if pipe.transformer_2 is not None:
-                pipe.transformer_2 = torch.compile(
-                    pipe.transformer_2, mode="max-autotune-no-cudagraphs"
+        if QUANT_METHOD == "gguf":
+            print("torch.compile skipped (incompatible with GGUF quantization)")
+        else:
+            try:
+                pipe.transformer = torch.compile(
+                    pipe.transformer, mode="max-autotune-no-cudagraphs"
                 )
-            print("torch.compile applied (first request will be slow)")
-        except Exception as exc:
-            print(f"torch.compile failed: {exc}")
+                if pipe.transformer_2 is not None:
+                    pipe.transformer_2 = torch.compile(
+                        pipe.transformer_2, mode="max-autotune-no-cudagraphs"
+                    )
+                print("torch.compile applied (first request will be slow)")
+            except Exception as exc:
+                print(f"torch.compile failed: {exc}")
 
     # -- LoRAs ----------------------------------------------------------------
     if os.path.exists(LORA_DIR):

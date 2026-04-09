@@ -1,6 +1,6 @@
 # torch/torchvision are pre-installed in the pytorch base image
 
-# Diffusers (install from source for latest Wan2.2 support)
+# Diffusers
 diffusers[torch]
 transformers
 accelerate>=0.26.0
@@ -10,6 +10,7 @@ protobuf
 
 # Quantization
 bitsandbytes
+gguf
 
 # Attention acceleration
 sageattention

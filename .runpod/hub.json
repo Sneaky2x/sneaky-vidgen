@@ -1,11 +1,11 @@
 {
   "title": "Sneaky Vidgen",
-  "description": "Wan2.2 Image-to-Video serverless worker with quantization, LoRA, TeaCache-style caching, and SageAttention acceleration.",
+  "description": "Wan2.2 Image-to-Video serverless worker with GGUF quantization, multi-LoRA, caching, and SageAttention.",
   "type": "serverless",
   "category": "video",
   "config": {
     "runsOn": "GPU",
-    "containerDiskInGb": 200,
+    "containerDiskInGb": 60,
     "gpuCount": 1,
     "gpuIds": "NVIDIA GeForce RTX 4090,NVIDIA A100-PCIE-40GB,NVIDIA A100 80GB PCIe,NVIDIA L40,NVIDIA L40S,NVIDIA RTX A5000,NVIDIA RTX A6000,NVIDIA H100 PCIe,NVIDIA H100 80GB HBM3",
     "env": [
@@ -14,13 +14,14 @@
         "input": {
           "name": "Quantization Method",
           "type": "string",
-          "description": "Model quantization: bnb4 (4-bit NF4, ~20GB VRAM), bnb8 (8-bit, ~40GB VRAM), none (BF16, ~66GB VRAM)",
+          "description": "gguf = GGUF quantised transformers (baked in image). bnb4/bnb8/none = BitsAndBytes or full precision (requires network volume with full model).",
           "options": [
-            {"label": "BitsAndBytes NF4 (24GB+ GPU)", "value": "bnb4"},
-            {"label": "BitsAndBytes 8-bit (48GB+ GPU)", "value": "bnb8"},
-            {"label": "No quantization / BF16 (80GB+ GPU)", "value": "none"}
+            {"label": "GGUF (baked, ~16-28 GB VRAM)", "value": "gguf"},
+            {"label": "BitsAndBytes NF4 (network vol, ~20 GB VRAM)", "value": "bnb4"},
+            {"label": "BitsAndBytes 8-bit (network vol, ~40 GB VRAM)", "value": "bnb8"},
+            {"label": "No quantization / BF16 (network vol, ~66 GB VRAM)", "value": "none"}
           ],
-          "default": "bnb4"
+          "default": "gguf"
         }
       },
       {
@@ -41,7 +42,7 @@
         "input": {
           "name": "Cache Threshold",
           "type": "string",
-          "description": "FirstBlockCache threshold (TeaCache-style). Higher = faster but lower quality. 0 = disabled. Try 0.05 for speed.",
+          "description": "FirstBlockCache threshold (TeaCache-style). Higher = faster but lower quality. 0 = disabled. Try 0.05-0.1 for speed.",
           "default": "0"
         }
       },
@@ -59,7 +60,7 @@
         "input": {
           "name": "HuggingFace Token",
           "type": "string",
-          "description": "HuggingFace access token for gated models (optional)",
+          "description": "HuggingFace access token (optional, for runtime model download)",
           "default": "",
           "advanced": true
         }
