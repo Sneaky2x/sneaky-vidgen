@@ -94,13 +94,23 @@ def load_pipeline():
                 "Run builder.py or set GGUF_DIR correctly."
             )
 
+        # Provide explicit Wan2.2 config — auto-detection wrongly maps to Wan2.1
+        hn_config = os.path.join(MODEL_PATH, "transformer")
+        ln_config = os.path.join(MODEL_PATH, "transformer_2")
+
         print(f"  HighNoise: {os.path.basename(hn_files[0])}")
         transformer = WanTransformer3DModel.from_single_file(
-            hn_files[0], quantization_config=gguf_cfg, torch_dtype=torch.bfloat16,
+            hn_files[0],
+            quantization_config=gguf_cfg,
+            config=hn_config,
+            torch_dtype=torch.bfloat16,
         )
         print(f"  LowNoise:  {os.path.basename(ln_files[0])}")
         transformer_2 = WanTransformer3DModel.from_single_file(
-            ln_files[0], quantization_config=gguf_cfg, torch_dtype=torch.bfloat16,
+            ln_files[0],
+            quantization_config=gguf_cfg,
+            config=ln_config,
+            torch_dtype=torch.bfloat16,
         )
 
         pipe = WanImageToVideoPipeline.from_pretrained(

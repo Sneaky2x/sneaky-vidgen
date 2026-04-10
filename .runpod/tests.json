@@ -5,14 +5,14 @@
       "input": {
         "action": "health"
       },
-      "timeout": 60000
+      "timeout": 300000
     },
     {
       "name": "list_loras",
       "input": {
         "action": "list_loras"
       },
-      "timeout": 10000
+      "timeout": 300000
     }
   ],
   "config": {

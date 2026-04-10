@@ -1,7 +1,7 @@
 # torch/torchvision are pre-installed in the pytorch base image
 
-# Diffusers (>=0.33.0 for GGUF meta tensor fix + Wan2.2 support)
-diffusers[torch]>=0.33.0
+# Diffusers (Wan2.2 + GGUF support)
+diffusers[torch]>=0.35.0
 transformers
 accelerate>=0.26.0
 safetensors
